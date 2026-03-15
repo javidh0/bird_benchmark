@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BirdSQL Benchmark — Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F0F4F8; color: #1a202c; }
+
+  .header { background: linear-gradient(135deg, #1F3864 0%, #2E75B6 100%); color: #fff; padding: 26px 40px 22px; }
+  .header h1 { font-size: 21px; font-weight: 700; }
+  .header p  { font-size: 12px; opacity: .75; margin-top: 4px; }
+  .pills { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .pill { background:rgba(255,255,255,.15); border-radius:20px; padding:3px 12px; font-size:11px; }
+  .pill.warn { background:rgba(255,200,0,.3); font-weight:600; }
+
+  .page { max-width:1160px; margin:0 auto; padding:28px 24px; }
+  .sec-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#718096; margin-bottom:12px; margin-top:32px; }
+
+  /* KPIs */
+  .kpi4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .kpi  { background:#fff; border-radius:12px; padding:18px 20px; box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .kpi.oi  { border-top:4px solid #1565C0; }
+  .kpi.qw  { border-top:4px solid #2E7D32; }
+  .kpi.t-oi{ border-top:4px solid #5B9BD5; }
+  .kpi.t-qw{ border-top:4px solid #70AD47; }
+  .kpi-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#718096; }
+  .kpi-val { font-size:30px; font-weight:800; margin:6px 0 2px; line-height:1; }
+  .kpi-sub { font-size:11px; color:#718096; }
+  .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; margin-top:6px; }
+  .chip.up { background:#F0FFF4; color:#276749; }
+  .chip.sp { background:#EBF8FF; color:#2B6CB0; }
+
+  /* model-pair tables */
+  .model-pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .model-block { background:#fff; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,.07); overflow:hidden; }
+  .mb-head { padding:11px 18px; font-size:13px; font-weight:700; color:#fff; }
+  .mb-head.oi { background:#1565C0; }
+  .mb-head.qw { background:#2E7D32; }
+  .mb-head span { font-size:11px; font-weight:400; opacity:.8; }
+
+  table { width:100%; border-collapse:collapse; }
+  th { background:#F7FAFC; font-size:10px; font-weight:700; text-transform:uppercase; color:#718096; padding:8px 16px; text-align:left; border-bottom:2px solid #EDF2F7; }
+  th.c { text-align:center; }
+  td { padding:10px 16px; font-size:12px; border-bottom:1px solid #F7FAFC; vertical-align:middle; }
+  td.c { text-align:center; }
+  tr:last-child td { border-bottom:none; font-weight:700; background:#F7FAFC; }
+  tr:hover:not(:last-child) td { background:#FAFCFF; }
+
+  .ds-name { font-weight:700; font-size:12px; }
+  .ds-n    { font-size:10px; color:#A0AEC0; }
+
+  /* accuracy cell */
+  .acc-main { font-size:15px; font-weight:800; }
+  .acc-main.oi { color:#1565C0; }
+  .acc-main.qw { color:#2E7D32; }
+  .acc-n    { font-size:10px; color:#718096; margin-top:1px; }
+  .bar-wrap { display:flex; align-items:center; gap:6px; margin-top:3px; }
+  .bar-tr   { width:80px; height:6px; background:#EDF2F7; border-radius:3px; overflow:hidden; flex-shrink:0; }
+  .bar-new-oi { height:100%; border-radius:3px; background:#1565C0; }
+  .bar-old-oi { height:100%; border-radius:3px; background:#BEE3F8; }
+  .bar-new-qw { height:100%; border-radius:3px; background:#2E7D32; }
+  .bar-old-qw { height:100%; border-radius:3px; background:#C6F6D5; }
+
+  .o-acc { font-size:12px; color:#A0AEC0; }
+
+  .delta { display:inline-block; padding:2px 7px; border-radius:7px; font-size:10px; font-weight:700; background:#F0FFF4; color:#276749; }
+
+  /* time */
+  .t-new-oi { font-size:14px; font-weight:800; color:#1565C0; }
+  .t-new-qw { font-size:14px; font-weight:800; color:#2E7D32; }
+  .t-old    { font-size:12px; color:#A0AEC0; }
+  .t-saved  { font-size:11px; font-weight:700; color:#276749; background:#F0FFF4; border-radius:7px; padding:2px 7px; white-space:nowrap; }
+  .tbar-wrap { display:flex; flex-direction:column; gap:3px; margin-top:4px; }
+  .tbar-row  { display:flex; align-items:center; gap:5px; }
+  .tbar-lbl  { font-size:9px; width:26px; color:#A0AEC0; font-weight:600; }
+  .tbar-tr   { flex:1; height:7px; background:#EDF2F7; border-radius:3px; overflow:hidden; }
+  .tbar-fill { height:100%; border-radius:3px; }
+
+  /* improvement cards */
+  .imp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .imp-card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); overflow:hidden; }
+  .imp-head { font-size:11px; font-weight:700; padding:9px 14px; background:#F7FAFC; border-bottom:1px solid #EDF2F7; color:#4A5568; text-align:center; }
+  .imp-body { padding:14px 12px; }
+  .imp-row  { display:flex; gap:6px; margin-bottom:4px; }
+  .imp-side { flex:1; border-radius:8px; padding:8px 6px; text-align:center; }
+  .imp-side.oi { background:#EBF5FB; }
+  .imp-side.qw { background:#EAFAF1; }
+  .imp-model { font-size:9px; font-weight:700; text-transform:uppercase; color:#718096; }
+  .imp-new   { font-size:19px; font-weight:800; line-height:1.1; margin:2px 0; }
+  .imp-new.oi{ color:#1565C0; }
+  .imp-new.qw{ color:#2E7D32; }
+  .imp-old   { font-size:10px; color:#A0AEC0; }
+  .imp-d     { font-size:10px; font-weight:700; color:#276749; }
+
+  /* failures */
+  .fail5 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .fail-card { background:#fff; border-radius:12px; padding:15px 18px; box-shadow:0 1px 4px rgba(0,0,0,.07); border-left:4px solid #ccc; }
+  .fail-card.red    { border-left-color:#E53E3E; }
+  .fail-card.amber  { border-left-color:#D69E2E; }
+  .fail-card.blue   { border-left-color:#3182CE; }
+  .fail-card.purple { border-left-color:#805AD5; }
+  .fail-card.gray   { border-left-color:#A0AEC0; }
+  .fail-title { font-size:12px; font-weight:700; margin-bottom:5px; }
+  .fail-desc  { font-size:11px; color:#4A5568; line-height:1.55; }
+  .fcounts { display:flex; gap:8px; margin-top:10px; }
+  .fc  { flex:1; text-align:center; border-radius:8px; padding:6px 4px; }
+  .fc.o  { background:#EBF5FB; }
+  .fc.q  { background:#EAFAF1; }
+  .fc.oi-n { background:#EBF5FB; }
+  .fc.oi-o { background:#F4F9FE; border:1px solid #BEE3F8; }
+  .fc.qw-n { background:#EAFAF1; }
+  .fc.qw-o { background:#F4FEF6; border:1px solid #C6F6D5; }
+  .fc-n{ font-size:18px; font-weight:800; }
+  .fc-n.o   { color:#1565C0; }
+  .fc-n.q   { color:#2E7D32; }
+  .fc-n.oi-n{ color:#1565C0; }
+  .fc-n.oi-o{ color:#5B9BD5; }
+  .fc-n.qw-n{ color:#2E7D32; }
+  .fc-n.qw-o{ color:#5BA86A; }
+  .fc-l{ font-size:9px; color:#718096; font-weight:600; }
+
+  /* insights */
+  .ins2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .ins  { background:#fff; border-radius:12px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,.07); display:flex; gap:14px; align-items:flex-start; }
+  .ins-icon  { font-size:20px; flex-shrink:0; }
+  .ins-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+  .ins-text  { font-size:11px; color:#4A5568; line-height:1.6; }
+  .tag { display:inline-block; padding:1px 7px; border-radius:5px; font-size:9px; font-weight:700; text-transform:uppercase; margin-right:4px; vertical-align:middle; }
+  .tag.win  { background:#D1FAE5; color:#065F46; }
+  .tag.risk { background:#FEE2E2; color:#991B1B; }
+  .tag.fix  { background:#FEF3C7; color:#92400E; }
+  .tag.info { background:#DBEAFE; color:#1E40AF; }
+
+  .note-banner { background:#FFFBEB; border:1px solid #FCD34D; border-radius:10px; padding:10px 16px; font-size:11px; color:#92400E; margin-bottom:16px; display:flex; gap:10px; align-items:flex-start; }
+
+  /* raw data footnote */
+  .raw-footnote { background:#F7FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 18px; font-size:10.5px; color:#718096; margin-top:32px; line-height:1.7; }
+  .raw-footnote strong { color:#4A5568; }
+
+  .footer { text-align:center; padding:24px; font-size:11px; color:#A0AEC0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>BirdSQL Benchmark — New Agent vs Old Agent</h1>
+  <p>Accuracy &amp; Speed improvements of the New SQL Agent over the Old Agent · OpenAI and Qwen models</p>
+  <div class="pills">
+    <span class="pill">578 questions per model</span>
+    <span class="pill">California School · 89q</span>
+    <span class="pill">Formula 1 · 174q</span>
+    <span class="pill">Superhero · 129q</span>
+    <span class="pill">Codebase · 186q</span>
+    <span class="pill warn">⚠ OpenAI Formula 1: 124 duplicate rows removed</span>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="note-banner">
+    <span style="font-size:15px;flex-shrink:0">⚠</span>
+    <div><strong>Duplicate rows removed:</strong> OpenAI's Formula 1 log had 298 rows for 174 unique questions (124 re-run duplicates). After deduplication both models are on the same 578 questions. OpenAI Formula 1 raw accuracy corrected from 29.2% → <strong>49.4%</strong>.</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="sec-label">Overall — New Agent corrected accuracy &amp; time improvement over Old Agent</div>
+  <div class="kpi4">
+    <div class="kpi oi">
+      <div class="kpi-lbl">OpenAI · New Agent</div>
+      <div class="kpi-val" style="color:#1565C0">59.2%</div>
+      <div class="kpi-sub">342 / 578 passed</div>
+      <span class="chip up">+17.3pp over Old Agent (41.9%)</span>
+    </div>
+    <div class="kpi qw">
+      <div class="kpi-lbl">Qwen · New Agent</div>
+      <div class="kpi-val" style="color:#2E7D32">51.0%</div>
+      <div class="kpi-sub">295 / 578 passed</div>
+      <span class="chip up">+10.5pp over Old Agent (40.5%)</span>
+    </div>
+    <div class="kpi t-oi">
+      <div class="kpi-lbl">OpenAI · Time saved (New vs Old)</div>
+      <div class="kpi-val" style="color:#5B9BD5">~2.2×</div>
+      <div class="kpi-sub">faster on avg across all datasets</div>
+      <span class="chip sp">Old ~28s → New ~13s avg</span>
+    </div>
+    <div class="kpi t-qw">
+      <div class="kpi-lbl">Qwen · Time saved (New vs Old)</div>
+      <div class="kpi-val" style="color:#70AD47">~2.2×</div>
+      <div class="kpi-sub">faster on avg across all datasets</div>
+      <span class="chip sp">Old ~46s → New ~21s avg</span>
+    </div>
+  </div>
+
+  <!-- Accuracy tables -->
+  <div class="sec-label">Accuracy — New Agent vs Old Agent &nbsp;·&nbsp; corrected figures &nbsp;·&nbsp; broken down by model</div>
+  <div class="model-pair">
+
+    <!-- OpenAI -->
+    <div class="model-block">
+      <div class="mb-head oi">OpenAI Model <span>— New Agent vs Old Agent (corrected accuracy)</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th class="c">New Agent</th>
+            <th class="c">Old Agent</th>
+            <th class="c">Improvement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ds-name">California School</div><div class="ds-n">89q</div></td>
+            <td class="c">
+              <div class="acc-main oi">41.6%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-oi" style="width:42%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">31.5%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-oi" style="width:32%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+10.1pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Formula 1</div><div class="ds-n">174q <span style="color:#D69E2E">⚠ deduped</span></div></td>
+            <td class="c">
+              <div class="acc-main oi">57.5%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-oi" style="width:58%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">42.0%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-oi" style="width:42%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+15.5pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Superhero</div><div class="ds-n">129q</div></td>
+            <td class="c">
+              <div class="acc-main oi">72.1%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-oi" style="width:72%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">42.6%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-oi" style="width:43%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+29.5pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Codebase</div><div class="ds-n">186q</div></td>
+            <td class="c">
+              <div class="acc-main oi">60.2%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-oi" style="width:60%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">46.2%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-oi" style="width:46%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+14.0pp</span></td>
+          </tr>
+          <tr>
+            <td>Overall</td>
+            <td class="c"><span class="acc-main oi" style="font-size:17px">59.2%</span></td>
+            <td class="c"><span class="o-acc" style="font-size:13px">41.9%</span></td>
+            <td class="c"><span class="delta" style="font-size:12px">+17.3pp</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Qwen -->
+    <div class="model-block">
+      <div class="mb-head qw">Qwen Model <span>— New Agent vs Old Agent (corrected accuracy)</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th class="c">New Agent</th>
+            <th class="c">Old Agent</th>
+            <th class="c">Improvement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ds-name">California School</div><div class="ds-n">89q</div></td>
+            <td class="c">
+              <div class="acc-main qw">31.5%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-qw" style="width:32%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">19.1%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-qw" style="width:19%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+12.4pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Formula 1</div><div class="ds-n">174q</div></td>
+            <td class="c">
+              <div class="acc-main qw">50.6%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-qw" style="width:51%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">40.8%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-qw" style="width:41%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+9.8pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Superhero</div><div class="ds-n">129q</div></td>
+            <td class="c">
+              <div class="acc-main qw">72.9%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-qw" style="width:73%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">56.6%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-qw" style="width:57%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+16.3pp</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Codebase</div><div class="ds-n">186q</div></td>
+            <td class="c">
+              <div class="acc-main qw">45.7%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-new-qw" style="width:46%"></div></div></div>
+            </td>
+            <td class="c">
+              <div class="o-acc">39.2%</div>
+              <div class="bar-wrap"><div class="bar-tr"><div class="bar-old-qw" style="width:39%"></div></div></div>
+            </td>
+            <td class="c"><span class="delta">+6.5pp</span></td>
+          </tr>
+          <tr>
+            <td>Overall</td>
+            <td class="c"><span class="acc-main qw" style="font-size:17px">51.0%</span></td>
+            <td class="c"><span class="o-acc" style="font-size:13px">40.5%</span></td>
+            <td class="c"><span class="delta" style="font-size:12px">+10.5pp</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- end accuracy pair -->
+
+  <!-- Time tables -->
+  <div class="sec-label">Generation Time — New Agent vs Old Agent &nbsp;·&nbsp; broken down by model</div>
+  <div class="model-pair">
+
+    <div class="model-block">
+      <div class="mb-head oi">OpenAI Model <span>— New Agent vs Old Agent (avg per query)</span></div>
+      <table>
+        <thead><tr><th>Dataset</th><th class="c">New Agent</th><th class="c">Old Agent</th><th class="c">Time Saved</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="ds-name">California School</div></td>
+            <td class="c">
+              <div class="t-new-oi">14.2s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:45%;background:#1565C0"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#BEE3F8"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">31.6s</div></td>
+            <td class="c"><span class="t-saved">−17.4s &nbsp;2.2×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Formula 1</div></td>
+            <td class="c">
+              <div class="t-new-oi">7.2s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:49%;background:#1565C0"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#BEE3F8"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">14.8s</div></td>
+            <td class="c"><span class="t-saved">−7.6s &nbsp;2.1×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Superhero</div></td>
+            <td class="c">
+              <div class="t-new-oi">14.1s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:47%;background:#1565C0"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#BEE3F8"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">29.9s</div></td>
+            <td class="c"><span class="t-saved">−15.8s &nbsp;2.1×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Codebase</div></td>
+            <td class="c">
+              <div class="t-new-oi">16.7s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:45%;background:#1565C0"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#BEE3F8"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">37.4s</div></td>
+            <td class="c"><span class="t-saved">−20.7s &nbsp;2.2×</span></td>
+          </tr>
+          <tr>
+            <td>Overall avg</td>
+            <td class="c"><span class="t-new-oi" style="font-size:16px">13.1s</span></td>
+            <td class="c"><span class="t-old" style="font-size:13px">28.4s</span></td>
+            <td class="c"><span class="t-saved" style="font-size:12px">−15.3s &nbsp;2.2×</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="model-block">
+      <div class="mb-head qw">Qwen Model <span>— New Agent vs Old Agent (avg per query)</span></div>
+      <table>
+        <thead><tr><th>Dataset</th><th class="c">New Agent</th><th class="c">Old Agent</th><th class="c">Time Saved</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="ds-name">California School</div></td>
+            <td class="c">
+              <div class="t-new-qw">30.1s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:46%;background:#2E7D32"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#C6F6D5"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">64.8s</div></td>
+            <td class="c"><span class="t-saved">−34.7s &nbsp;2.2×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Formula 1</div></td>
+            <td class="c">
+              <div class="t-new-qw">22.6s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:48%;background:#2E7D32"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#C6F6D5"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">47.5s</div></td>
+            <td class="c"><span class="t-saved">−24.9s &nbsp;2.1×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Superhero</div></td>
+            <td class="c">
+              <div class="t-new-qw">16.6s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:50%;background:#2E7D32"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#C6F6D5"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">33.2s</div></td>
+            <td class="c"><span class="t-saved">−16.6s &nbsp;2.0×</span></td>
+          </tr>
+          <tr>
+            <td><div class="ds-name">Codebase</div></td>
+            <td class="c">
+              <div class="t-new-qw">15.9s</div>
+              <div class="tbar-wrap">
+                <div class="tbar-row"><div class="tbar-lbl">New</div><div class="tbar-tr"><div class="tbar-fill" style="width:42%;background:#2E7D32"></div></div></div>
+                <div class="tbar-row"><div class="tbar-lbl">Old</div><div class="tbar-tr"><div class="tbar-fill" style="width:100%;background:#C6F6D5"></div></div></div>
+              </div>
+            </td>
+            <td class="c"><div class="t-old">38.2s</div></td>
+            <td class="c"><span class="t-saved">−22.3s &nbsp;2.4×</span></td>
+          </tr>
+          <tr>
+            <td>Overall avg</td>
+            <td class="c"><span class="t-new-qw" style="font-size:16px">21.3s</span></td>
+            <td class="c"><span class="t-old" style="font-size:13px">45.9s</span></td>
+            <td class="c"><span class="t-saved" style="font-size:12px">−24.6s &nbsp;2.2×</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- end time pair -->
+
+  <!-- Per-dataset improvement summary -->
+  <div class="sec-label">New Agent corrected accuracy per dataset — OpenAI vs Qwen side by side</div>
+  <div class="imp-grid">
+    <div class="imp-card">
+      <div class="imp-head">California School · 89q</div>
+      <div class="imp-body">
+        <div class="imp-row">
+          <div class="imp-side oi">
+            <div class="imp-model">OpenAI</div>
+            <div class="imp-new oi">41.6%</div>
+            <div class="imp-old">Old: 31.5%</div>
+            <div class="imp-d">+10.1pp</div>
+          </div>
+          <div class="imp-side qw">
+            <div class="imp-model">Qwen</div>
+            <div class="imp-new qw">31.5%</div>
+            <div class="imp-old">Old: 19.1%</div>
+            <div class="imp-d">+12.4pp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="imp-card">
+      <div class="imp-head">Formula 1 · 174q <span style="color:#D69E2E;font-size:10px">⚠ deduped</span></div>
+      <div class="imp-body">
+        <div class="imp-row">
+          <div class="imp-side oi">
+            <div class="imp-model">OpenAI</div>
+            <div class="imp-new oi">57.5%</div>
+            <div class="imp-old">Old: 42.0%</div>
+            <div class="imp-d">+15.5pp</div>
+          </div>
+          <div class="imp-side qw">
+            <div class="imp-model">Qwen</div>
+            <div class="imp-new qw">50.6%</div>
+            <div class="imp-old">Old: 40.8%</div>
+            <div class="imp-d">+9.8pp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="imp-card">
+      <div class="imp-head">Superhero · 129q</div>
+      <div class="imp-body">
+        <div class="imp-row">
+          <div class="imp-side oi">
+            <div class="imp-model">OpenAI</div>
+            <div class="imp-new oi">72.1%</div>
+            <div class="imp-old">Old: 42.6%</div>
+            <div class="imp-d">+29.5pp</div>
+          </div>
+          <div class="imp-side qw">
+            <div class="imp-model">Qwen</div>
+            <div class="imp-new qw">72.9%</div>
+            <div class="imp-old">Old: 56.6%</div>
+            <div class="imp-d">+16.3pp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="imp-card">
+      <div class="imp-head">Codebase · 186q</div>
+      <div class="imp-body">
+        <div class="imp-row">
+          <div class="imp-side oi">
+            <div class="imp-model">OpenAI</div>
+            <div class="imp-new oi">60.2%</div>
+            <div class="imp-old">Old: 46.2%</div>
+            <div class="imp-d">+14.0pp</div>
+          </div>
+          <div class="imp-side qw">
+            <div class="imp-model">Qwen</div>
+            <div class="imp-new qw">45.7%</div>
+            <div class="imp-old">Old: 39.2%</div>
+            <div class="imp-d">+6.5pp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Failures -->
+  <div class="sec-label">Common Failure Patterns (remaining after correction)</div>
+  <div class="fail5">
+    <div class="fail-card red">
+      <div class="fail-title">🔴 Schema Read Failure — No SQL Generated</div>
+      <div class="fail-desc">The agent <strong>wrongly said it cannot generate SQL</strong> with the provided schema — returning empty SQL instead of attempting a query. New Agent reduced these failures on both models.</div>
+      <div class="fcounts">
+        <div class="fc oi-n"><div class="fc-n oi-n">126</div><div class="fc-l">OI · New</div></div>
+        <div class="fc oi-o"><div class="fc-n oi-o">156</div><div class="fc-l">OI · Old</div></div>
+        <div class="fc qw-n"><div class="fc-n qw-n">37</div><div class="fc-l">Qw · New</div></div>
+        <div class="fc qw-o"><div class="fc-n qw-o">56</div><div class="fc-l">Qw · Old</div></div>
+      </div>
+    </div>
+    <div class="fail-card blue">
+      <div class="fail-title">🔵 Wrong / Partial Result</div>
+      <div class="fail-desc">SQL runs but the expected row is missing — wrong JOIN, incorrect ORDER BY, or incomplete WHERE clause. Both models show similar counts.</div>
+      <div class="fcounts">
+        <div class="fc o"><div class="fc-n o">240</div><div class="fc-l">OpenAI</div></div>
+        <div class="fc q"><div class="fc-n q">291</div><div class="fc-l">Qwen</div></div>
+      </div>
+    </div>
+    <div class="fail-card amber">
+      <div class="fail-title">🟡 Zero Rows Returned</div>
+      <div class="fail-desc">Valid SQL that matches nothing — caused by wrong enum values (e.g. <code>'Continuation'</code> vs <code>'Continuation School'</code>) or wrong filter column. Qwen has significantly more.</div>
+      <div class="fcounts">
+        <div class="fc o"><div class="fc-n o">87</div><div class="fc-l">OpenAI</div></div>
+        <div class="fc q"><div class="fc-n q">175</div><div class="fc-l">Qwen</div></div>
+      </div>
+    </div>
+    <div class="fail-card gray">
+      <div class="fail-title">⚫ Other Logic Errors</div>
+      <div class="fail-desc">Wrong aggregation, missing GROUP BY, bad subquery, wrong JOIN type. Both models are nearly identical here — a shared weakness in complex query planning.</div>
+      <div class="fcounts">
+        <div class="fc o"><div class="fc-n o">66</div><div class="fc-l">OpenAI</div></div>
+        <div class="fc q"><div class="fc-n q">67</div><div class="fc-l">Qwen</div></div>
+      </div>
+    </div>
+    <div class="fail-card purple">
+      <div class="fail-title">🟣 Column Order Mismatch — corrected</div>
+      <div class="fail-desc">Correct data returned in wrong column order. Treated as passes in corrected accuracy above. Both models were equally affected — also indicates an evaluator sensitivity issue.</div>
+      <div class="fcounts">
+        <div class="fc o"><div class="fc-n o">28</div><div class="fc-l">OpenAI ✓ fixed</div></div>
+        <div class="fc q"><div class="fc-n q">21</div><div class="fc-l">Qwen ✓ fixed</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Findings -->
+  <div class="sec-label">Key Findings</div>
+  <div class="ins2">
+
+    <div class="ins">
+      <div class="ins-icon">✅</div>
+      <div>
+        <div class="ins-title"><span class="tag win">RESULT</span> New Agent beats Old Agent on every dataset and both models</div>
+        <div class="ins-text">Corrected accuracy: OpenAI New 59.2% vs Old 41.9% (+17.3pp). Qwen New 51.0% vs Old 40.5% (+10.5pp). The improvement holds across all 4 datasets without exception. Biggest single gain: OpenAI on Superhero (+29.5pp).</div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="ins-icon">⚡</div>
+      <div>
+        <div class="ins-title"><span class="tag win">SPEED</span> New Agent is ~2.2× faster than Old Agent on both models</div>
+        <div class="ins-text">OpenAI: New 13.1s vs Old 28.4s (−15.3s per query). Qwen: New 21.3s vs Old 45.9s (−24.6s per query). Speed improvement is consistent across all 4 datasets — not limited to any specific domain.</div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="ins-icon">🔴</div>
+      <div>
+        <div class="ins-title"><span class="tag risk">RISK</span> OpenAI has 3× more schema read failures than Qwen</div>
+        <div class="ins-text">OpenAI returned completely empty SQL 283 times vs Qwen's 93. When the agent can't read the schema it produces nothing at all. Qwen is notably more resilient on complex or unfamiliar schemas.</div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="ins-icon">🔍</div>
+      <div>
+        <div class="ins-title"><span class="tag fix">FIX APPLIED</span> 49 column order mismatches were false failures</div>
+        <div class="ins-text">28 OpenAI + 21 Qwen failures had correct data but wrong column order. These are treated as passes in the corrected accuracy figures shown above — OpenAI gained +4.9pp and Qwen +3.6pp from this correction. The evaluator should be made order-insensitive.</div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="ins-icon">📊</div>
+      <div>
+        <div class="ins-title"><span class="tag info">FINDING</span> Superhero is the strongest dataset; Formula 1 the hardest</div>
+        <div class="ins-text">Corrected: Superhero hits 72% on both models. Formula 1 is weakest (51–57%) due to complex multi-table racing queries requiring time-based filtering and nested joins. Both models struggle equally there.</div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="ins-icon">🟡</div>
+      <div>
+        <div class="ins-title"><span class="tag fix">FIX</span> Qwen returns zero rows 2× more than OpenAI</div>
+        <div class="ins-text">Qwen generates valid SQL but uses incorrect filter values 175 times vs OpenAI's 87. The agent selects the right table and column but uses the wrong string literal. Domain-specific vocabulary (exact enum values) is a known weak point for Qwen.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Accuracy methodology footnote -->
+  <div class="raw-footnote">
+    <strong>📋 Accuracy methodology note:</strong> All accuracy figures shown above are <strong>corrected</strong> — 49 column order mismatches (28 OpenAI + 21 Qwen) where correct data was returned in the wrong column order are treated as passes, as these were evaluator false-negatives rather than agent errors.<br>
+    <strong>Raw (pre-correction) accuracy for reference —</strong>
+    OpenAI New: 54.3% overall (Cal 33.7%, F1 49.4%, SH 70.5%, CB 57.5%) · OpenAI Old: 36.9% overall &nbsp;|&nbsp;
+    Qwen New: 47.4% overall (Cal 28.1%, F1 44.8%, SH 71.3%, CB 42.5%) · Qwen Old: 37.0% overall
+  </div>
+
+</div>
+<div class="footer">BirdSQL Benchmark &nbsp;·&nbsp; OpenAI: bird_log.csv (deduped to 578q, 28 col-order fixes) &nbsp;·&nbsp; Qwen: bird_log_qwen.csv (578q, 21 col-order fixes)</div>
+</body>
+</html>
